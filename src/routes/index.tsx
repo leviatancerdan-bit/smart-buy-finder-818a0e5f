@@ -76,7 +76,7 @@ function Index() {
         <header className="text-center">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
             <Sparkles className="h-3.5 w-3.5" />
-            Análisis con búsqueda web en vivo
+            Análisis con IA
           </div>
           <h1 className="font-display text-4xl font-bold leading-tight text-foreground sm:text-6xl">
             ¿Subo, bajo o{" "}
@@ -149,7 +149,7 @@ function Index() {
           <div className="mx-auto mt-10 max-w-3xl rounded-2xl border border-border bg-card/60 p-8">
             <div className="flex items-center gap-3 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              Buscando noticias, comentarios y ofertas en la web...
+              Analizando precios, tendencias y ofertas con IA...
             </div>
           </div>
         )}
@@ -217,8 +217,8 @@ function Index() {
         <DealsSection />
 
         <footer className="mt-20 border-t border-border pt-6 text-center text-xs text-muted-foreground">
-          PriceWatch usa búsqueda web en vivo. Las recomendaciones son orientativas;
-          verifica siempre el precio en la tienda oficial antes de comprar.
+          PriceWatch usa IA para sugerir momentos de compra. Las recomendaciones son
+          orientativas; verifica siempre el precio en la tienda oficial antes de comprar.
         </footer>
       </div>
     </div>
