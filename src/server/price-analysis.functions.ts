@@ -1,5 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 
+export type LocalMarket = {
+  name: string;
+  city: string;
+  trend: "up" | "down" | "stable";
+  priceRange: string;
+  tips: string;
+};
+
 export type PriceSuggestion = {
   query: string;
   country: string;
@@ -16,10 +24,11 @@ export type PriceSuggestion = {
   newsHighlights: string[];
   communityInsights: string[];
   recommendedStores: { name: string; url: string; note: string }[];
+  localMarkets: LocalMarket[];
   citations: string[];
 };
 
-const SYSTEM = `Eres un analista experto en precios de productos tecnológicos, planes de IA, juegos (Steam, Epic, GOG, PlayStation, Xbox) y suscripciones digitales.
+const SYSTEM = `Eres un analista experto en precios de productos tecnológicos, planes de IA, juegos, suscripciones digitales Y MERCADOS/GALERÍAS FÍSICAS de tecnología en Latinoamérica y España (ej: Galerías Wilson y Compuplaza/Plaza Tecnológica en Lima-Perú, Plaza de la Tecnología y Plaza Meiggs en Santiago-Chile, Galería Jardín y Once en Buenos Aires-Argentina, Plaza de la Tecnología y Centro Capital en CDMX-México, Unilago en Bogotá-Colombia, Santa Efigênia en São Paulo-Brasil, Calle Preciados en Madrid).
 Te darán un producto y un país. Devuelve SOLO JSON válido (sin markdown ni texto extra) con esta forma EXACTA:
 {
   "category": "tecnologia" | "ia" | "videojuegos" | "suscripcion" | "otro",
@@ -28,22 +37,35 @@ Te darán un producto y un país. Devuelve SOLO JSON válido (sin markdown ni te
   "trend": "up" | "down" | "stable",
   "confidence": número 0-100,
   "tldr": "UNA sola frase corta y directa con la recomendación (máx 20 palabras, lenguaje sencillo)",
-  "estimatedPrice": "rango o precio típico en la moneda local del país, ej: '500-650 USD' o 'MXN 12,000-14,000'. Si no sabes, 'No disponible'",
-  "bestMoment": "frase corta indicando cuándo conviene comprar, ej: 'Espera al Black Friday (nov)' o 'Ahora mismo en Steam Sale'",
-  "summary": "2-3 frases en español, claras y sin tecnicismos, explicando la situación de precio",
+  "estimatedPrice": "rango o precio típico en moneda local del país, ej: '500-650 USD' o 'S/ 2,400-2,800'. Si no sabes, 'No disponible'",
+  "bestMoment": "frase corta indicando cuándo conviene comprar, ej: 'Espera al CyberWow (jul)' o 'Ahora en Steam Sale'",
+  "summary": "2-3 frases en español, claras y sin tecnicismos",
   "reasons": ["3-5 razones MUY concretas y cortas en español, cada una de máx 15 palabras"],
-  "newsHighlights": ["3-5 hechos relevantes sobre precios, lanzamientos o rebajas conocidas, frases cortas"],
-  "communityInsights": ["2-4 opiniones típicas de comunidad/foros (Reddit, foros, Twitter), frases cortas"],
+  "newsHighlights": ["3-5 hechos relevantes, frases cortas"],
+  "communityInsights": ["2-4 opiniones típicas de comunidad/foros, frases cortas"],
   "recommendedStores": [
-    {"name": "Tienda oficial disponible en el país", "url": "https://...", "note": "por qué confiar o detalle de oferta (máx 12 palabras)"}
+    {"name": "Tienda online oficial disponible en el país", "url": "https://...", "note": "máx 12 palabras"}
+  ],
+  "localMarkets": [
+    {
+      "name": "Mercado, galería o tienda física LEGAL y SEGURA del país (ej: Galerías Wilson, Compuplaza, Plaza Meiggs, Unilago, Santa Efigênia, Galería Jardín, Centro Capital)",
+      "city": "Ciudad donde se ubica",
+      "trend": "up" | "down" | "stable",
+      "priceRange": "rango típico en moneda local en ese mercado, ej: 'S/ 2,200-2,600' o 'No aplica'",
+      "tips": "consejo para comprar seguro: pedir boleta/factura, verificar RUC, garantía, evitar puestos sin nombre, regateo. Máx 20 palabras"
+    }
   ]
 }
 Reglas estrictas:
-- Adapta TODO al país indicado: moneda local, tiendas que operan ahí, fechas de rebajas regionales (ej: El Buen Fin en México, CyberDay en Chile, Black Friday en US/EU).
-- Solo tiendas LEGALES y oficiales (Steam, Epic, GOG, Humble, PlayStation/Xbox Store, Amazon del país, Mercado Libre oficial, web del fabricante, OpenAI, Anthropic). NUNCA reventas grises.
-- "verdict": buy_now (oferta activa o precio bajo), wait (se espera bajada pronto), hold (estable, ni mal ni buen momento).
-- Lenguaje: español claro, sin jerga técnica innecesaria. Frases cortas. El usuario debe entender en 5 segundos.
-- Si no tienes datos claros, di "Información limitada" en summary y baja la confianza por debajo de 50.`;
+- Adapta TODO al país: moneda local, tiendas online y FÍSICAS que operan ahí, fechas de rebajas regionales (CyberDays, El Buen Fin, CyberWow Perú, Hot Sale Argentina, Black Friday Brasil).
+- "recommendedStores": solo tiendas ONLINE legales (Steam, Epic, GOG, PlayStation/Xbox Store, Amazon local, Mercado Libre oficial, Falabella, Ripley, Linio, web del fabricante, OpenAI, Anthropic).
+- "localMarkets": SOLO si la categoría es "tecnologia", "videojuegos" o "otro" físico. Para "ia" o "suscripcion" devuelve [] vacío.
+  - Incluye 2-4 mercados/galerías/calles comerciales LEGALES (con boleta/factura) del país, priorizando los MENOS conocidos pero SEGUROS.
+  - "trend" indica si los precios en ese mercado físico están subiendo, bajando o estables.
+  - NUNCA recomiendes lugares de piratería, contrabando o mercados negros. Solo legales con factura/boleta y garantía.
+- "verdict": buy_now (oferta o precio bajo), wait (se espera bajada), hold (estable).
+- Lenguaje: español claro y corto. El usuario debe entender en 5 segundos.
+- Si no tienes datos claros, di "Información limitada" en summary y baja confianza por debajo de 50.`;
 
 async function callLovableAI(messages: { role: string; content: string }[]) {
   const apiKey = process.env.LOVABLE_API_KEY;
