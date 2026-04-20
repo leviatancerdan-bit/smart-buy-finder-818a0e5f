@@ -45,6 +45,7 @@ function Index() {
   const analyze = useServerFn(analyzePrice);
   const { items, add, remove, clear } = useHistory();
   const [query, setQuery] = useState("");
+  const [country, setCountry] = useState("Internacional");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PriceSuggestion | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +56,7 @@ function Index() {
     setError(null);
     setResult(null);
     try {
-      const res = await analyze({ data: { query: q.trim() } });
+      const res = await analyze({ data: { query: q.trim(), country } });
       setResult(res);
       add({
         query: res.query,
