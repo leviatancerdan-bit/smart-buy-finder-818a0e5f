@@ -9,6 +9,7 @@ import { useHistory } from "@/hooks/use-history";
 import { ResultCard } from "@/components/result-card";
 import { DealsSection } from "@/components/deals-section";
 import { TrendBadge } from "@/components/badges";
+import { CountrySelect } from "@/components/country-select";
 import { Search, Loader2, Clock, X, Trash2, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -44,6 +45,7 @@ function Index() {
   const analyze = useServerFn(analyzePrice);
   const { items, add, remove, clear } = useHistory();
   const [query, setQuery] = useState("");
+  const [country, setCountry] = useState("Internacional");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PriceSuggestion | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +56,7 @@ function Index() {
     setError(null);
     setResult(null);
     try {
-      const res = await analyze({ data: { query: q.trim() } });
+      const res = await analyze({ data: { query: q.trim(), country } });
       setResult(res);
       add({
         query: res.query,
@@ -118,6 +120,10 @@ function Index() {
                 "Analizar"
               )}
             </button>
+          </div>
+
+          <div className="mt-3 flex justify-center">
+            <CountrySelect value={country} onChange={setCountry} />
           </div>
 
           <div className="mt-4 flex flex-wrap justify-center gap-2">
@@ -214,7 +220,7 @@ function Index() {
         )}
 
         {/* Deals */}
-        <DealsSection />
+        <DealsSection country={country} />
 
         <footer className="mt-20 border-t border-border pt-6 text-center text-xs text-muted-foreground">
           PriceWatch usa IA para sugerir momentos de compra. Las recomendaciones son

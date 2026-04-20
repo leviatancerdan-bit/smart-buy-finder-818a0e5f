@@ -2,11 +2,15 @@ import { createServerFn } from "@tanstack/react-start";
 
 export type PriceSuggestion = {
   query: string;
+  country: string;
   category: string;
   verdict: "buy_now" | "wait" | "hold";
   verdictLabel: string;
   trend: "up" | "down" | "stable";
   confidence: number; // 0-100
+  tldr: string;
+  estimatedPrice: string;
+  bestMoment: string;
   summary: string;
   reasons: string[];
   newsHighlights: string[];
@@ -16,27 +20,30 @@ export type PriceSuggestion = {
 };
 
 const SYSTEM = `Eres un analista experto en precios de productos tecnológicos, planes de IA, juegos (Steam, Epic, GOG, PlayStation, Xbox) y suscripciones digitales.
-Analiza el producto que el usuario pide y devuelve SOLO JSON válido (sin texto extra, sin markdown) con esta forma:
+Te darán un producto y un país. Devuelve SOLO JSON válido (sin markdown ni texto extra) con esta forma EXACTA:
 {
   "category": "tecnologia" | "ia" | "videojuegos" | "suscripcion" | "otro",
   "verdict": "buy_now" | "wait" | "hold",
-  "verdictLabel": "string corto en español",
+  "verdictLabel": "string corto en español (máx 4 palabras)",
   "trend": "up" | "down" | "stable",
   "confidence": número 0-100,
-  "summary": "1-2 frases en español resumiendo la situación de precio actual",
-  "reasons": ["3-5 razones concretas en español"],
-  "newsHighlights": ["3-5 hechos relevantes sobre precios, lanzamientos o rebajas conocidas"],
-  "communityInsights": ["2-4 opiniones típicas de comunidad/foros (Reddit, foros, Twitter)"],
+  "tldr": "UNA sola frase corta y directa con la recomendación (máx 20 palabras, lenguaje sencillo)",
+  "estimatedPrice": "rango o precio típico en la moneda local del país, ej: '500-650 USD' o 'MXN 12,000-14,000'. Si no sabes, 'No disponible'",
+  "bestMoment": "frase corta indicando cuándo conviene comprar, ej: 'Espera al Black Friday (nov)' o 'Ahora mismo en Steam Sale'",
+  "summary": "2-3 frases en español, claras y sin tecnicismos, explicando la situación de precio",
+  "reasons": ["3-5 razones MUY concretas y cortas en español, cada una de máx 15 palabras"],
+  "newsHighlights": ["3-5 hechos relevantes sobre precios, lanzamientos o rebajas conocidas, frases cortas"],
+  "communityInsights": ["2-4 opiniones típicas de comunidad/foros (Reddit, foros, Twitter), frases cortas"],
   "recommendedStores": [
-    {"name": "Nombre tienda legal y oficial", "url": "https://...", "note": "por qué confiar en ella o detalle de oferta"}
+    {"name": "Tienda oficial disponible en el país", "url": "https://...", "note": "por qué confiar o detalle de oferta (máx 12 palabras)"}
   ]
 }
-Reglas:
-- Solo recomienda tiendas LEGALES y oficiales (Steam, Epic, GOG, Humble, PlayStation Store, Xbox Store, Amazon, web oficial del fabricante, OpenAI, Anthropic, etc.). NUNCA reventas grises ni claves dudosas.
-- "verdict": buy_now si suele estar de oferta o el precio está bajo; wait si se espera bajada (rebajas estacionales próximas, nueva generación, etc.); hold si está estable o no es buen momento.
-- Sé específico: menciona % de descuento típicos, fechas de rebajas (Steam Summer/Winter Sale, Black Friday, Prime Day) cuando aplique.
-- Si no tienes información clara, di "Información limitada" en summary y baja la confianza.
-- Responde TODO en español.`;
+Reglas estrictas:
+- Adapta TODO al país indicado: moneda local, tiendas que operan ahí, fechas de rebajas regionales (ej: El Buen Fin en México, CyberDay en Chile, Black Friday en US/EU).
+- Solo tiendas LEGALES y oficiales (Steam, Epic, GOG, Humble, PlayStation/Xbox Store, Amazon del país, Mercado Libre oficial, web del fabricante, OpenAI, Anthropic). NUNCA reventas grises.
+- "verdict": buy_now (oferta activa o precio bajo), wait (se espera bajada pronto), hold (estable, ni mal ni buen momento).
+- Lenguaje: español claro, sin jerga técnica innecesaria. Frases cortas. El usuario debe entender en 5 segundos.
+- Si no tienes datos claros, di "Información limitada" en summary y baja la confianza por debajo de 50.`;
 
 async function callLovableAI(messages: { role: string; content: string }[]) {
   const apiKey = process.env.LOVABLE_API_KEY;
@@ -56,7 +63,7 @@ async function callLovableAI(messages: { role: string; content: string }[]) {
   });
 
   if (res.status === 429) {
-    throw new Error("Límite de uso alcanzado, intenta en unos momentos.");
+    throw new Error("Demasiadas solicitudes. Intenta de nuevo en un momento.");
   }
   if (res.status === 402) {
     throw new Error("Se requieren créditos en Lovable AI para continuar.");
@@ -81,20 +88,21 @@ function extractJson(content: string): any {
 }
 
 export const analyzePrice = createServerFn({ method: "POST" })
-  .inputValidator((data: { query: string }) => {
+  .inputValidator((data: { query: string; country?: string }) => {
     if (!data?.query || typeof data.query !== "string") {
       throw new Error("query requerido");
     }
     const q = data.query.trim().slice(0, 200);
     if (q.length < 2) throw new Error("query muy corto");
-    return { query: q };
+    const country = (data.country ?? "Internacional").toString().trim().slice(0, 50);
+    return { query: q, country };
   })
   .handler(async ({ data }): Promise<PriceSuggestion> => {
     const content = await callLovableAI([
       { role: "system", content: SYSTEM },
       {
         role: "user",
-        content: `Producto a analizar: "${data.query}". Devuelve solo el JSON pedido.`,
+        content: `Producto: "${data.query}"\nPaís: ${data.country}\n\nDevuelve solo el JSON pedido, adaptado a la moneda y tiendas de ${data.country}.`,
       },
     ]);
 
@@ -102,11 +110,15 @@ export const analyzePrice = createServerFn({ method: "POST" })
 
     return {
       query: data.query,
+      country: data.country,
       category: parsed.category ?? "otro",
       verdict: parsed.verdict ?? "hold",
       verdictLabel: parsed.verdictLabel ?? "Mantente atento",
       trend: parsed.trend ?? "stable",
       confidence: Math.max(0, Math.min(100, Number(parsed.confidence) || 50)),
+      tldr: parsed.tldr ?? "",
+      estimatedPrice: parsed.estimatedPrice ?? "No disponible",
+      bestMoment: parsed.bestMoment ?? "",
       summary: parsed.summary ?? "",
       reasons: Array.isArray(parsed.reasons) ? parsed.reasons.slice(0, 6) : [],
       newsHighlights: Array.isArray(parsed.newsHighlights)
@@ -137,23 +149,26 @@ const DEALS_SYSTEM = `Eres un experto en ofertas legales. Devuelve SOLO JSON con
     {
       "title": "Nombre del producto",
       "category": "tecnologia" | "ia" | "videojuegos" | "suscripcion",
-      "store": "Tienda oficial",
+      "store": "Tienda oficial disponible en el país",
       "url": "https://link-oficial",
-      "discount": "ej: -40% o $X menos",
-      "why": "razón breve de por qué es buena oferta"
+      "discount": "ej: -40% o $X menos en moneda local",
+      "why": "razón breve (máx 12 palabras)"
     }
   ]
 }
-Solo tiendas legales (Steam, Epic, GOG, Humble, PlayStation/Xbox Store, Amazon, fabricantes oficiales, OpenAI, etc.). 8-12 ofertas mezclando categorías, basadas en descuentos típicos y conocidos. Responde en español.`;
+Solo tiendas legales del país indicado (Steam, Epic, GOG, Humble, PlayStation/Xbox Store, Amazon local, Mercado Libre oficial, fabricantes oficiales, OpenAI, etc.). 8-12 ofertas mezclando categorías. Responde en español.`;
 
-export const fetchDeals = createServerFn({ method: "POST" }).handler(
-  async (): Promise<DealItem[]> => {
+export const fetchDeals = createServerFn({ method: "POST" })
+  .inputValidator((data: { country?: string }) => {
+    const country = (data?.country ?? "Internacional").toString().trim().slice(0, 50);
+    return { country };
+  })
+  .handler(async ({ data }): Promise<DealItem[]> => {
     const content = await callLovableAI([
       { role: "system", content: DEALS_SYSTEM },
       {
         role: "user",
-        content:
-          "Lista 8-12 ofertas y rebajas típicas o probables en productos tecnológicos, planes de IA, juegos en Steam/Epic/GOG/consolas y suscripciones digitales legales.",
+        content: `País: ${data.country}. Lista 8-12 ofertas y rebajas típicas o probables en productos tecnológicos, planes de IA, juegos en Steam/Epic/GOG/consolas y suscripciones digitales legales, adaptadas a la moneda y tiendas de ${data.country}.`,
       },
     ]);
 
@@ -163,5 +178,4 @@ export const fetchDeals = createServerFn({ method: "POST" }).handler(
     } catch {
       return [];
     }
-  }
-);
+  });

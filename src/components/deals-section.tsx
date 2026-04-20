@@ -4,7 +4,7 @@ import { fetchDeals, type DealItem } from "@/server/price-analysis.functions";
 import { CategoryChip } from "./badges";
 import { ExternalLink, Sparkles, Loader2 } from "lucide-react";
 
-export function DealsSection() {
+export function DealsSection({ country }: { country: string }) {
   const fetchDealsFn = useServerFn(fetchDeals);
   const [deals, setDeals] = useState<DealItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -15,7 +15,7 @@ export function DealsSection() {
     setLoading(true);
     setError(null);
     try {
-      const d = await fetchDealsFn();
+      const d = await fetchDealsFn({ data: { country } });
       setDeals(d);
       setLoaded(true);
     } catch (e: any) {
@@ -33,7 +33,7 @@ export function DealsSection() {
             Ofertas activas esta semana
           </h2>
           <p className="mt-1 text-muted-foreground">
-            Rebajas en tiendas legales: Steam, Epic, fabricantes oficiales y más.
+            Rebajas en tiendas legales para <span className="font-semibold text-foreground">{country}</span>: Steam, Epic, fabricantes oficiales y más.
           </p>
         </div>
         <button
