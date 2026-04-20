@@ -121,6 +121,10 @@ function Index() {
             </button>
           </div>
 
+          <div className="mt-3 flex justify-center">
+            <CountrySelect value={country} onChange={setCountry} />
+          </div>
+
           <div className="mt-4 flex flex-wrap justify-center gap-2">
             {SUGGESTIONS.map((s) => (
               <button
@@ -215,7 +219,7 @@ function Index() {
         )}
 
         {/* Deals */}
-        <DealsSection />
+        <DealsSection country={country} />
 
         <footer className="mt-20 border-t border-border pt-6 text-center text-xs text-muted-foreground">
           PriceWatch usa IA para sugerir momentos de compra. Las recomendaciones son
