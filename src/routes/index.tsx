@@ -9,6 +9,7 @@ import { useHistory } from "@/hooks/use-history";
 import { ResultCard } from "@/components/result-card";
 import { DealsSection } from "@/components/deals-section";
 import { TrendBadge } from "@/components/badges";
+import { CountrySelect } from "@/components/country-select";
 import { Search, Loader2, Clock, X, Trash2, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/")({
