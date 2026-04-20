@@ -149,7 +149,7 @@ function Index() {
           <div className="mx-auto mt-10 max-w-3xl rounded-2xl border border-border bg-card/60 p-8">
             <div className="flex items-center gap-3 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              Buscando noticias, comentarios y ofertas en la web...
+              Analizando precios, tendencias y ofertas con IA...
             </div>
           </div>
         )}
