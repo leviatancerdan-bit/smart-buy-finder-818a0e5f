@@ -25,18 +25,60 @@ Analiza el producto que el usuario pide y devuelve SOLO JSON válido (sin texto 
   "confidence": número 0-100,
   "summary": "1-2 frases en español resumiendo la situación de precio actual",
   "reasons": ["3-5 razones concretas en español"],
-  "newsHighlights": ["3-5 titulares o hechos recientes con fechas si las conoces"],
-  "communityInsights": ["2-4 opiniones representativas de comunidad/foros (Reddit, foros, Twitter)"],
+  "newsHighlights": ["3-5 hechos relevantes sobre precios, lanzamientos o rebajas conocidas"],
+  "communityInsights": ["2-4 opiniones típicas de comunidad/foros (Reddit, foros, Twitter)"],
   "recommendedStores": [
     {"name": "Nombre tienda legal y oficial", "url": "https://...", "note": "por qué confiar en ella o detalle de oferta"}
   ]
 }
 Reglas:
 - Solo recomienda tiendas LEGALES y oficiales (Steam, Epic, GOG, Humble, PlayStation Store, Xbox Store, Amazon, web oficial del fabricante, OpenAI, Anthropic, etc.). NUNCA reventas grises ni claves dudosas.
-- "verdict": buy_now si el precio está bajo o hay oferta; wait si se espera bajada; hold si está estable o no es buen momento.
-- Sé específico: menciona % de descuento, fechas de rebajas (Steam Summer/Winter Sale, Black Friday, etc.) cuando aplique.
-- Si no encuentras info clara, di "Información limitada" en summary y baja la confianza.
+- "verdict": buy_now si suele estar de oferta o el precio está bajo; wait si se espera bajada (rebajas estacionales próximas, nueva generación, etc.); hold si está estable o no es buen momento.
+- Sé específico: menciona % de descuento típicos, fechas de rebajas (Steam Summer/Winter Sale, Black Friday, Prime Day) cuando aplique.
+- Si no tienes información clara, di "Información limitada" en summary y baja la confianza.
 - Responde TODO en español.`;
+
+async function callLovableAI(messages: { role: string; content: string }[]) {
+  const apiKey = process.env.LOVABLE_API_KEY;
+  if (!apiKey) throw new Error("LOVABLE_API_KEY no configurada");
+
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages,
+      response_format: { type: "json_object" },
+    }),
+  });
+
+  if (res.status === 429) {
+    throw new Error("Límite de uso alcanzado, intenta en unos momentos.");
+  }
+  if (res.status === 402) {
+    throw new Error("Se requieren créditos en Lovable AI para continuar.");
+  }
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("Lovable AI error:", res.status, text);
+    throw new Error(`AI Gateway error ${res.status}`);
+  }
+  const json = await res.json();
+  return (json.choices?.[0]?.message?.content ?? "") as string;
+}
+
+function extractJson(content: string): any {
+  try {
+    return JSON.parse(content);
+  } catch {
+    const match = content.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("Respuesta del modelo no es JSON válido");
+    return JSON.parse(match[0]);
+  }
+}
 
 export const analyzePrice = createServerFn({ method: "POST" })
   .inputValidator((data: { query: string }) => {
@@ -48,50 +90,15 @@ export const analyzePrice = createServerFn({ method: "POST" })
     return { query: q };
   })
   .handler(async ({ data }): Promise<PriceSuggestion> => {
-    const apiKey = process.env.PERPLEXITY_API_KEY;
-    if (!apiKey) {
-      throw new Error("PERPLEXITY_API_KEY no configurada");
-    }
-
-    const res = await fetch("https://api.perplexity.ai/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
+    const content = await callLovableAI([
+      { role: "system", content: SYSTEM },
+      {
+        role: "user",
+        content: `Producto a analizar: "${data.query}". Devuelve solo el JSON pedido.`,
       },
-      body: JSON.stringify({
-        model: "sonar",
-        messages: [
-          { role: "system", content: SYSTEM },
-          {
-            role: "user",
-            content: `Producto a analizar: "${data.query}". Busca noticias recientes, ofertas activas, opiniones de comunidad y devuelve solo el JSON pedido.`,
-          },
-        ],
-        temperature: 0.2,
-        search_recency_filter: "month",
-        return_citations: true,
-      }),
-    });
+    ]);
 
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("Perplexity error:", res.status, text);
-      throw new Error(`Perplexity API error ${res.status}`);
-    }
-
-    const json = await res.json();
-    const content: string = json.choices?.[0]?.message?.content ?? "";
-    const citations: string[] = json.citations ?? [];
-
-    // Extract JSON from response
-    let parsed: any;
-    try {
-      const match = content.match(/\{[\s\S]*\}/);
-      parsed = JSON.parse(match ? match[0] : content);
-    } catch {
-      throw new Error("Respuesta del modelo no es JSON válido");
-    }
+    const parsed = extractJson(content);
 
     return {
       query: data.query,
@@ -111,7 +118,7 @@ export const analyzePrice = createServerFn({ method: "POST" })
       recommendedStores: Array.isArray(parsed.recommendedStores)
         ? parsed.recommendedStores.slice(0, 6)
         : [],
-      citations: citations.slice(0, 8),
+      citations: [],
     };
   });
 
@@ -133,51 +140,28 @@ const DEALS_SYSTEM = `Eres un experto en ofertas legales. Devuelve SOLO JSON con
       "store": "Tienda oficial",
       "url": "https://link-oficial",
       "discount": "ej: -40% o $X menos",
-      "why": "razón breve de por qué es buena oferta ahora"
+      "why": "razón breve de por qué es buena oferta"
     }
   ]
 }
-Solo tiendas legales (Steam, Epic, GOG, Humble, PlayStation/Xbox Store, Amazon, fabricantes oficiales, OpenAI, etc.). 8-12 ofertas mezclando categorías. Responde en español.`;
+Solo tiendas legales (Steam, Epic, GOG, Humble, PlayStation/Xbox Store, Amazon, fabricantes oficiales, OpenAI, etc.). 8-12 ofertas mezclando categorías, basadas en descuentos típicos y conocidos. Responde en español.`;
 
 export const fetchDeals = createServerFn({ method: "POST" }).handler(
   async (): Promise<DealItem[]> => {
-    const apiKey = process.env.PERPLEXITY_API_KEY;
-    if (!apiKey) throw new Error("PERPLEXITY_API_KEY no configurada");
-
-    const res = await fetch("https://api.perplexity.ai/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
+    const content = await callLovableAI([
+      { role: "system", content: DEALS_SYSTEM },
+      {
+        role: "user",
+        content:
+          "Lista 8-12 ofertas y rebajas típicas o probables en productos tecnológicos, planes de IA, juegos en Steam/Epic/GOG/consolas y suscripciones digitales legales.",
       },
-      body: JSON.stringify({
-        model: "sonar",
-        messages: [
-          { role: "system", content: DEALS_SYSTEM },
-          {
-            role: "user",
-            content:
-              "Lista las mejores ofertas y rebajas activas esta semana en productos tecnológicos, planes de IA, juegos en Steam/Epic/GOG/consolas y suscripciones digitales legales.",
-          },
-        ],
-        temperature: 0.3,
-        search_recency_filter: "week",
-      }),
-    });
+    ]);
 
-    if (!res.ok) {
-      console.error("Perplexity deals error:", res.status, await res.text());
-      throw new Error(`Perplexity API error ${res.status}`);
-    }
-    const json = await res.json();
-    const content: string = json.choices?.[0]?.message?.content ?? "";
-    let parsed: any;
     try {
-      const match = content.match(/\{[\s\S]*\}/);
-      parsed = JSON.parse(match ? match[0] : content);
+      const parsed = extractJson(content);
+      return Array.isArray(parsed.deals) ? parsed.deals.slice(0, 12) : [];
     } catch {
       return [];
     }
-    return Array.isArray(parsed.deals) ? parsed.deals.slice(0, 12) : [];
   }
 );
