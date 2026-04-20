@@ -217,8 +217,8 @@ function Index() {
         <DealsSection />
 
         <footer className="mt-20 border-t border-border pt-6 text-center text-xs text-muted-foreground">
-          PriceWatch usa búsqueda web en vivo. Las recomendaciones son orientativas;
-          verifica siempre el precio en la tienda oficial antes de comprar.
+          PriceWatch usa IA para sugerir momentos de compra. Las recomendaciones son
+          orientativas; verifica siempre el precio en la tienda oficial antes de comprar.
         </footer>
       </div>
     </div>
