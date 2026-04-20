@@ -130,6 +130,9 @@ export const analyzePrice = createServerFn({ method: "POST" })
       recommendedStores: Array.isArray(parsed.recommendedStores)
         ? parsed.recommendedStores.slice(0, 6)
         : [],
+      localMarkets: Array.isArray(parsed.localMarkets)
+        ? parsed.localMarkets.slice(0, 6)
+        : [],
       citations: [],
     };
   });
