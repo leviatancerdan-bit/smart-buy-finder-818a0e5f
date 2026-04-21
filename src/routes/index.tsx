@@ -34,11 +34,23 @@ export const Route = createFileRoute("/")({
 
 const SUGGESTIONS = [
   "RTX 4070 Super",
+  "RTX 4090",
+  "Ryzen 7 7800X3D",
   "ChatGPT Plus",
-  "Cyberpunk 2077",
-  "iPhone 15 Pro",
-  "Hollow Knight Silksong",
   "Claude Pro",
+  "GitHub Copilot",
+  "Cyberpunk 2077",
+  "Hollow Knight Silksong",
+  "Elden Ring",
+  "Baldur's Gate 3",
+  "iPhone 15 Pro",
+  "Samsung S24",
+  "PlayStation 5",
+  "Nintendo Switch OLED",
+  "AirPods Pro 2",
+  "Spotify Premium",
+  "Netflix",
+  "Notion",
 ];
 
 function Index() {
@@ -49,6 +61,13 @@ function Index() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PriceSuggestion | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const visibleSuggestions = (() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return SUGGESTIONS.slice(0, 8);
+    const matches = SUGGESTIONS.filter((s) => s.toLowerCase().includes(q));
+    return matches.length > 0 ? matches.slice(0, 8) : SUGGESTIONS.slice(0, 6);
+  })();
 
   const submit = async (q: string) => {
     if (!q.trim() || loading) return;
