@@ -67,33 +67,34 @@ Reglas estrictas:
 - Lenguaje: español claro y corto. El usuario debe entender en 5 segundos.
 - Si no tienes datos claros, di "Información limitada" en summary y baja confianza por debajo de 50.`;
 
-async function callLovableAI(messages: { role: string; content: string }[]) {
-  const apiKey = process.env.LOVABLE_API_KEY;
-  if (!apiKey) throw new Error("LOVABLE_API_KEY no configurada");
+async function callAI(messages: { role: string; content: string }[]) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("OPENAI_API_KEY no configurada en el servidor");
 
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
       messages,
       response_format: { type: "json_object" },
+      temperature: 0.4,
     }),
   });
 
   if (res.status === 429) {
     throw new Error("Demasiadas solicitudes. Intenta de nuevo en un momento.");
   }
-  if (res.status === 402) {
-    throw new Error("Se requieren créditos en Lovable AI para continuar.");
+  if (res.status === 401) {
+    throw new Error("OPENAI_API_KEY inválida");
   }
   if (!res.ok) {
     const text = await res.text();
-    console.error("Lovable AI error:", res.status, text);
-    throw new Error(`AI Gateway error ${res.status}`);
+    console.error("OpenAI error:", res.status, text);
+    throw new Error(`OpenAI error ${res.status}`);
   }
   const json = await res.json();
   return (json.choices?.[0]?.message?.content ?? "") as string;
@@ -120,7 +121,7 @@ export const analyzePrice = createServerFn({ method: "POST" })
     return { query: q, country };
   })
   .handler(async ({ data }): Promise<PriceSuggestion> => {
-    const content = await callLovableAI([
+    const content = await callAI([
       { role: "system", content: SYSTEM },
       {
         role: "user",
@@ -189,7 +190,7 @@ export const fetchDeals = createServerFn({ method: "POST" })
     return { country };
   })
   .handler(async ({ data }): Promise<DealItem[]> => {
-    const content = await callLovableAI([
+    const content = await callAI([
       { role: "system", content: DEALS_SYSTEM },
       {
         role: "user",
