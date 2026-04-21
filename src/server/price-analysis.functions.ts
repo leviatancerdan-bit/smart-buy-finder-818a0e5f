@@ -309,6 +309,24 @@ const DEALS_TEMPLATES: Omit<DealItem, "store" | "url">[] = [
   { title: "Baldur's Gate 3", category: "videojuegos", discount: "-20%", why: "Primera oferta estacional." },
 ];
 
+const EXTRA_DEALS: Omit<DealItem, "store" | "url">[] = [
+  { title: "Red Dead Redemption 2", category: "videojuegos", discount: "-67%", why: "Histórico mínimo en Steam." },
+  { title: "GTA V Premium", category: "videojuegos", discount: "-70%", why: "Oferta semanal recurrente." },
+  { title: "Hogwarts Legacy", category: "videojuegos", discount: "-50%", why: "Ya pasó un año desde el lanzamiento." },
+  { title: "Spider-Man Remastered", category: "videojuegos", discount: "-45%", why: "Rebaja frecuente fuera de fechas pico." },
+  { title: "RTX 4060", category: "tecnologia", discount: "-18%", why: "GPU de gama media con stock saludable." },
+  { title: "AMD Ryzen 5 7600", category: "tecnologia", discount: "-22%", why: "Bajada por llegada de nueva gen." },
+  { title: "SSD NVMe 1TB Samsung 980", category: "tecnologia", discount: "-35%", why: "Almacenamiento en oferta agresiva." },
+  { title: "Monitor 27\" 144Hz IPS", category: "tecnologia", discount: "-28%", why: "Competencia fuerte entre marcas." },
+  { title: "AirPods Pro 2", category: "tecnologia", discount: "-15%", why: "Rebaja típica fuera de Black Friday." },
+  { title: "Samsung Galaxy S23", category: "tecnologia", discount: "-30%", why: "Reemplazo por modelo sucesor." },
+  { title: "GitHub Copilot", category: "ia", discount: "Gratis para estudiantes", why: "Beneficio educativo permanente." },
+  { title: "Perplexity Pro", category: "ia", discount: "1 año gratis con plan partner", why: "Promo activa con operadores." },
+  { title: "Notion Plus", category: "suscripcion", discount: "-50% plan anual", why: "Descuento por pago anual vs mensual." },
+  { title: "YouTube Premium Familiar", category: "suscripcion", discount: "Hasta 5 cuentas", why: "Ahorro por cuenta vs plan individual." },
+  { title: "Disney+ anual", category: "suscripcion", discount: "-16% vs mensual", why: "Mejor relación pagando anual." },
+];
+
 export const fetchDeals = createServerFn({ method: "POST" })
   .inputValidator((data: { country?: string }) => {
     const country = (data?.country ?? "Internacional").toString().trim().slice(0, 50);
@@ -317,7 +335,8 @@ export const fetchDeals = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<DealItem[]> => {
     await new Promise((r) => setTimeout(r, 300));
     const stores = STORES_BY_COUNTRY[data.country] ?? STORES_BY_COUNTRY["Internacional"];
-    return DEALS_TEMPLATES.map((d, i) => {
+    const all = [...DEALS_TEMPLATES, ...EXTRA_DEALS];
+    return all.map((d, i) => {
       let store = stores[i % stores.length];
       if (d.category === "videojuegos") {
         const gameStores = [
