@@ -146,7 +146,7 @@ function Index() {
           </div>
 
           <div className="mt-4 flex flex-wrap justify-center gap-2">
-            {SUGGESTIONS.map((s) => (
+            {visibleSuggestions.map((s) => (
               <button
                 key={s}
                 type="button"
