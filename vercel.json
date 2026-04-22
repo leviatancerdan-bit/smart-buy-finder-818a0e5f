@@ -1,5 +1,14 @@
 {
   "buildCommand": "vite build",
-  "outputDirectory": ".output/public",
-  "framework": null
+  "outputDirectory": "dist/client",
+  "framework": null,
+  "functions": {
+    "api/[[...path]].js": {
+      "runtime": "@vercel/node@5.0.0"
+    }
+  },
+  "rewrites": [
+    { "source": "/assets/:path*", "destination": "/assets/:path*" },
+    { "source": "/(.*)", "destination": "/api/server" }
+  ]
 }
