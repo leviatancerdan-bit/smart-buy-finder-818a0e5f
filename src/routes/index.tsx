@@ -149,7 +149,7 @@ function Index() {
           }}
           className="mx-auto mt-10 max-w-2xl"
         >
-          <div className="flex items-center gap-2 rounded-2xl border border-border bg-card p-2 shadow-[var(--shadow-elevated)] focus-within:border-primary">
+          <div className="card-glow flex items-center gap-2 rounded-2xl border border-border bg-card/80 p-2 shadow-[var(--shadow-elevated)] backdrop-blur-xl transition focus-within:border-primary">
             <Search className="ml-3 h-5 w-5 text-muted-foreground" />
             <input
               value={query}
@@ -161,7 +161,7 @@ function Index() {
             <button
               type="submit"
               disabled={loading || !query.trim()}
-              className="inline-flex items-center gap-2 rounded-xl bg-[var(--gradient-primary)] px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-glow)] transition hover:opacity-90 disabled:opacity-50"
+              className="cta-pulse inline-flex items-center gap-2 rounded-xl bg-[var(--gradient-primary)] px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-glow)] transition hover:scale-[1.02] hover:opacity-95 active:scale-95 disabled:opacity-50"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Analizar"}
             </button>
@@ -190,7 +190,7 @@ function Index() {
 
         {/* Auto-refresh: barra de progreso en vivo */}
         {loading && (
-          <div className="mx-auto mt-10 max-w-3xl rounded-2xl border border-border bg-card/60 p-6">
+          <div className="card-glow fade-up mx-auto mt-10 max-w-3xl rounded-2xl border border-border bg-card/60 p-6 backdrop-blur-xl">
             <div className="flex items-center gap-3 text-sm text-foreground">
               <Loader2 className="h-5 w-5 animate-spin text-primary" />
               <span className="font-semibold">Analizando "{query}"</span>
@@ -212,7 +212,7 @@ function Index() {
         )}
 
         {result && (
-          <div className="mt-10">
+          <div className="fade-up mt-10">
             <ResultCard result={result} />
           </div>
         )}
