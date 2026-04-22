@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
-import { fetchDeals, type DealItem } from "@/server/price-analysis.functions";
+import { buildDeals, type DealItem } from "@/lib/price-analysis";
 import { CategoryChip } from "./badges";
 import { ExternalLink, Sparkles, Loader2, Search, ArrowUpDown, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -23,28 +22,20 @@ function discountValue(d: string): number {
 }
 
 export function DealsSection({ country }: { country: string }) {
-  const fetchDealsFn = useServerFn(fetchDeals);
   const [deals, setDeals] = useState<DealItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("discount");
 
   const load = async () => {
     setLoading(true);
-    setError(null);
-    try {
-      const d = await fetchDealsFn({ data: { country } });
-      setDeals(d);
-    } catch (e: any) {
-      setError(e?.message ?? "Error cargando ofertas");
-    } finally {
-      setLoading(false);
-    }
+    // Pequeño delay simulado para feedback visual
+    await new Promise((r) => setTimeout(r, 250));
+    setDeals(buildDeals(country));
+    setLoading(false);
   };
 
-  // Auto-cargar al montar y al cambiar país
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -59,7 +50,7 @@ export function DealsSection({ country }: { country: string }) {
         (d) =>
           d.title.toLowerCase().includes(q) ||
           d.store.toLowerCase().includes(q) ||
-          d.why.toLowerCase().includes(q)
+          d.why.toLowerCase().includes(q),
       );
     }
     const sorted = [...out];
@@ -106,7 +97,6 @@ export function DealsSection({ country }: { country: string }) {
         </button>
       </div>
 
-      {/* Toolbar */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="flex flex-1 items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">
           <Search className="h-4 w-4 text-muted-foreground" />
@@ -140,7 +130,7 @@ export function DealsSection({ country }: { country: string }) {
               "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition",
               filter === f.id
                 ? "border-primary bg-primary/15 text-primary"
-                : "border-border bg-card/60 text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                : "border-border bg-card/60 text-muted-foreground hover:border-primary/50 hover:text-foreground",
             )}
           >
             {f.label}
@@ -152,12 +142,6 @@ export function DealsSection({ country }: { country: string }) {
           </button>
         ))}
       </div>
-
-      {error && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-          {error}
-        </div>
-      )}
 
       {loading && deals.length === 0 && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -1,4 +1,6 @@
-import { createServerFn } from "@tanstack/react-start";
+// Motor de análisis 100% local. Sin APIs externas, sin backend, sin coste.
+// Ejecutado completamente en el navegador para que el sitio funcione como
+// SPA estático en Vercel sin necesidad de funciones serverless.
 
 export type LocalMarket = {
   name: string;
@@ -36,8 +38,6 @@ export type DealItem = {
   discount: string;
   why: string;
 };
-
-// ---------- Heurísticas locales (sin API, sin coste) ----------
 
 type Category = "tecnologia" | "ia" | "videojuegos" | "suscripcion" | "otro";
 
@@ -79,7 +79,7 @@ const BASE_PRICE_USD: Record<Category, [number, number]> = {
 function formatPrice(country: string, cat: Category, seed: number): string {
   const cur = COUNTRY_CURRENCY[country] ?? COUNTRY_CURRENCY["Internacional"];
   const [lo, hi] = BASE_PRICE_USD[cat];
-  const base = lo + (seed % 100) / 100 * (hi - lo);
+  const base = lo + ((seed % 100) / 100) * (hi - lo);
   const low = Math.round(base * cur.rate);
   const high = Math.round(base * cur.rate * 1.2);
   const fmt = (n: number) => n.toLocaleString("es");
@@ -125,7 +125,7 @@ function localMarketsFor(country: string, cat: Category, seed: number): LocalMar
   const cur = COUNTRY_CURRENCY[country] ?? COUNTRY_CURRENCY["Internacional"];
   const [lo, hi] = BASE_PRICE_USD[cat];
   return base.map((m, i) => {
-    const low = Math.round((lo + (seed + i * 7) % 50 / 100 * (hi - lo)) * cur.rate * 0.9);
+    const low = Math.round((lo + (((seed + i * 7) % 50) / 100) * (hi - lo)) * cur.rate * 0.9);
     const high = Math.round(low * 1.18);
     return {
       ...m,
@@ -200,13 +200,14 @@ function storesFor(country: string, cat: Category): { name: string; url: string;
   return list.slice(0, 6);
 }
 
-function buildSuggestion(query: string, country: string): PriceSuggestion {
+export function buildSuggestion(query: string, country: string): PriceSuggestion {
   const cat = detectCategory(query);
   const seed = hash(query.toLowerCase() + country);
 
   const verdicts: PriceSuggestion["verdict"][] = ["buy_now", "wait", "hold"];
   const verdict = verdicts[seed % 3];
-  const trend: PriceSuggestion["trend"] = verdict === "buy_now" ? "down" : verdict === "wait" ? "up" : "stable";
+  const trend: PriceSuggestion["trend"] =
+    verdict === "buy_now" ? "down" : verdict === "wait" ? "up" : "stable";
 
   const verdictLabel =
     verdict === "buy_now" ? "Buen momento" : verdict === "wait" ? "Mejor esperar" : "Precio estable";
@@ -265,8 +266,8 @@ function buildSuggestion(query: string, country: string): PriceSuggestion {
       verdict === "buy_now"
         ? `Indicadores apuntan a un precio favorable para ${query} en ${country}. Verifica siempre en la tienda oficial antes de pagar.`
         : verdict === "wait"
-        ? `Hoy ${query} está por encima del promedio en ${country}. Esperar a fechas de rebaja suele dar mejor precio.`
-        : `${query} mantiene un precio estable en ${country}. Comprar ahora o esperar tiene poca diferencia.`,
+          ? `Hoy ${query} está por encima del promedio en ${country}. Esperar a fechas de rebaja suele dar mejor precio.`
+          : `${query} mantiene un precio estable en ${country}. Comprar ahora o esperar tiene poca diferencia.`,
     reasons: pick(reasonsPool, 4),
     newsHighlights: pick(newsPool, 3),
     communityInsights: pick(communityPool, 3),
@@ -275,24 +276,6 @@ function buildSuggestion(query: string, country: string): PriceSuggestion {
     citations: [],
   };
 }
-
-export const analyzePrice = createServerFn({ method: "POST" })
-  .inputValidator((data: { query: string; country?: string }) => {
-    if (!data?.query || typeof data.query !== "string") {
-      throw new Error("query requerido");
-    }
-    const q = data.query.trim().slice(0, 200);
-    if (q.length < 2) throw new Error("query muy corto");
-    const country = (data.country ?? "Internacional").toString().trim().slice(0, 50);
-    return { query: q, country };
-  })
-  .handler(async ({ data }): Promise<PriceSuggestion> => {
-    // Pequeño delay simulado para sensación natural
-    await new Promise((r) => setTimeout(r, 400));
-    return buildSuggestion(data.query, data.country);
-  });
-
-// ---------- Deals mock ----------
 
 const DEALS_TEMPLATES: Omit<DealItem, "store" | "url">[] = [
   { title: "Cyberpunk 2077", category: "videojuegos", discount: "-60%", why: "Rebaja estacional típica en Steam." },
@@ -327,29 +310,26 @@ const EXTRA_DEALS: Omit<DealItem, "store" | "url">[] = [
   { title: "Disney+ anual", category: "suscripcion", discount: "-16% vs mensual", why: "Mejor relación pagando anual." },
 ];
 
-export const fetchDeals = createServerFn({ method: "POST" })
-  .inputValidator((data: { country?: string }) => {
-    const country = (data?.country ?? "Internacional").toString().trim().slice(0, 50);
-    return { country };
-  })
-  .handler(async ({ data }): Promise<DealItem[]> => {
-    await new Promise((r) => setTimeout(r, 300));
-    const stores = STORES_BY_COUNTRY[data.country] ?? STORES_BY_COUNTRY["Internacional"];
-    const all = [...DEALS_TEMPLATES, ...EXTRA_DEALS];
-    return all.map((d, i) => {
-      let store = stores[i % stores.length];
-      if (d.category === "videojuegos") {
-        const gameStores = [
-          { name: "Steam", url: "https://store.steampowered.com" },
-          { name: "Epic Games", url: "https://store.epicgames.com" },
-          { name: "GOG", url: "https://www.gog.com" },
-        ];
-        store = gameStores[i % gameStores.length];
-      } else if (d.category === "ia") {
-        store = { name: d.title.includes("Claude") ? "Anthropic" : "OpenAI", url: d.title.includes("Claude") ? "https://claude.ai" : "https://openai.com" };
-      } else if (d.category === "suscripcion") {
-        store = { name: d.title.split(" ")[0], url: "#" };
-      }
-      return { ...d, store: store.name, url: store.url };
-    });
+export function buildDeals(country: string): DealItem[] {
+  const stores = STORES_BY_COUNTRY[country] ?? STORES_BY_COUNTRY["Internacional"];
+  const all = [...DEALS_TEMPLATES, ...EXTRA_DEALS];
+  return all.map((d, i) => {
+    let store = stores[i % stores.length];
+    if (d.category === "videojuegos") {
+      const gameStores = [
+        { name: "Steam", url: "https://store.steampowered.com" },
+        { name: "Epic Games", url: "https://store.epicgames.com" },
+        { name: "GOG", url: "https://www.gog.com" },
+      ];
+      store = gameStores[i % gameStores.length];
+    } else if (d.category === "ia") {
+      store = {
+        name: d.title.includes("Claude") ? "Anthropic" : "OpenAI",
+        url: d.title.includes("Claude") ? "https://claude.ai" : "https://openai.com",
+      };
+    } else if (d.category === "suscripcion") {
+      store = { name: d.title.split(" ")[0], url: "#" };
+    }
+    return { ...d, store: store.name, url: store.url };
   });
+}

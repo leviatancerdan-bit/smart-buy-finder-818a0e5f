@@ -1,5 +1,10 @@
 {
   "buildCommand": "vite build",
-  "outputDirectory": ".output/public",
-  "framework": null
+  "outputDirectory": "dist/client",
+  "framework": null,
+  "rewrites": [
+    { "source": "/assets/(.*)", "destination": "/assets/$1" },
+    { "source": "/(.*\\.(js|css|png|jpg|jpeg|svg|ico|webp|woff2?|map))", "destination": "/$1" },
+    { "source": "/(.*)", "destination": "/api/server" }
+  ]
 }
