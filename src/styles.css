@@ -95,6 +95,7 @@
   );
   --shadow-glow: 0 0 40px -10px oklch(0.82 0.18 200 / 0.5);
   --shadow-elevated: 0 24px 60px -20px oklch(0 0 0 / 0.6);
+  --shadow-card-hover: 0 30px 80px -20px oklch(0.82 0.18 200 / 0.25);
 }
 
 .dark {
@@ -128,3 +129,79 @@
     letter-spacing: -0.02em;
   }
 }
+
+/* Aurora ligera en el fondo (CSS puro, sin JS, GPU-friendly) */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -20%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 30% at 20% 10%, oklch(0.82 0.18 200 / 0.18), transparent 70%),
+    radial-gradient(35% 25% at 85% 25%, oklch(0.72 0.22 340 / 0.15), transparent 70%),
+    radial-gradient(45% 30% at 60% 90%, oklch(0.78 0.18 150 / 0.10), transparent 70%);
+  filter: blur(40px);
+  animation: aurora 24s ease-in-out infinite alternate;
+}
+
+@keyframes aurora {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  100% { transform: translate3d(2%, -2%, 0) scale(1.05); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before { animation: none; }
+}
+
+/* Grid sutil sobre el fondo */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(oklch(0.97 0.01 250 / 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.97 0.01 250 / 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+}
+
+/* Utilidad: tarjeta con borde-gradiente sutil */
+.card-glow {
+  position: relative;
+  isolation: isolate;
+}
+.card-glow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, oklch(0.82 0.18 200 / 0.55), oklch(0.72 0.22 340 / 0.45));
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+}
+.card-glow:hover::before { opacity: 1; }
+
+/* Pulso suave para CTA */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 oklch(0.82 0.18 200 / 0.5); }
+  50%      { box-shadow: 0 0 24px 4px oklch(0.82 0.18 200 / 0.35); }
+}
+.cta-pulse { animation: pulse-glow 3.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .cta-pulse { animation: none; } }
+
+/* Fade-in al aparecer */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fade-up 0.45s ease-out both; }
